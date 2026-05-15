@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>투어패스 이미지 통합 규격화 시스템</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 40px; background: #f4f7f6; line-height: 1.6; color: #333; }
+        .container { max-width: 950px; margin: 0 auto; text-align: center; }
+        .guide-box { background: white; padding: 25px; border-radius: 12px; border-left: 5px solid #2ecc71; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: left; }
+        .highlight { color: #2ecc71; font-weight: bold; }
+        #drop-zone { border: 3px dashed #2ecc71; padding: 80px; background: #fff; border-radius: 20px; cursor: pointer; transition: 0.3s; font-size: 1.2em; }
+        #drop-zone:hover { background: #f1f9f5; border-color: #27ae60; }
+        #status { color: #27ae60; font-weight: bold; margin-top: 20px; font-size: 1.1em; }
+        .spec-list { display: flex; justify-content: center; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+        .spec-item { background: #e8f5e9; color: #2e7d32; padding: 5px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold; border: 1px solid #c8e6c9; }
+        #result-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 30px; }
+        .preview-box { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .preview-box img { width: 100%; border-radius: 4px; border: 1px solid #eee; }
+        canvas { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="guide-box">
+        <h2>⚡ 이미지 규격별 고정 명칭 추출 시스템</h2>
+        <p>사진을 드롭하면 용량 최적화와 함께 <span class="highlight">지정된 4가지 파일명</span>으로 자동 생성됩니다.</p>
+        <div class="spec-list">
+            <span class="spec-item">1000 (1000x1000)</span>
+            <span class="spec-item">1200 (1200x750)</span>
+            <span class="spec-item">y_thumbnail_banner (600x800)</span>
+            <span class="spec-item">c_rolling_banner (1080x720)</span>
+        </div>
+    </div>
+
+    <div id="drop-zone">이미지를 드롭하여 고정 명칭으로 일괄 추출 시작</div>
+    <input type="file" id="file-input" accept="image/*" style="display: none;">
+    
+    <div id="status"></div>
+    <div id="result-container"></div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const resultContainer = document.getElementById('result-container');
+    const status = document.getElementById('status');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // 요청하신 고정 파일명과 규격 리스트
+    const targetSpecs = [
+        { w: 1000, h: 1000, finalName: '1000' },
+        { w: 1200, h: 750,  finalName: '1200' },
+        { w: 600,  h: 800,  finalName: 'y_thumbnail_banner' },
+        { w: 1080, h: 720,  finalName: 'c_rolling_banner' }
+    ];
+
+    dropZone.onclick = () => fileInput.click();
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('hover'); };
+    dropZone.ondrop = (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); };
+    fileInput.onchange = (e) => handleFile(e.target.files[0]);
+
+    async function handleFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+
+        status.innerText = "🚀 고정 명칭으로 규격 변환 중...";
+        resultContainer.innerHTML = '';
+        const zip = new JSZip();
+
+        for (const spec of targetSpecs) {
+            canvas.width = spec.w;
+            canvas.height = spec.h;
+            
+            const blob = await processImageFill(file, spec.w, spec.h);
+            const url = URL.createObjectURL(blob);
+            const fileName = `${spec.finalName}.jpg`;
+
+            const previewDiv = document.createElement('div');
+            previewDiv.className = 'preview-box';
+            previewDiv.innerHTML = `<img src="${url}"><br><small><strong>${fileName}</strong><br>(${(blob.size/1024).toFixed(1)} KB)</small>`;
+            resultContainer.appendChild(previewDiv);
+
+            zip.file(fileName, blob);
+        }
+
+        const content = await zip.generateAsync({type: "blob"});
+        const zipLink = document.createElement('a');
+        zipLink.href = URL.createObjectURL(content);
+        zipLink.download = `optimized_banners.zip`;
+        zipLink.click();
+
+        status.innerText = "✅ 모든 파일이 지정된 명칭으로 추출되었습니다!";
+    }
+
+    function processImageFill(file, targetW, targetH) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(0, 0, targetW, targetH);
+                    
+                    let scale = Math.max(targetW / img.width, targetH / img.height);
+                    let w = img.width * scale;
+                    let h = img.height * scale;
+                    let x = (targetW - w) / 2;
+                    let y = (targetH - h) / 2;
+                    
+                    ctx.drawImage(img, x, y, w, h);
+                    canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.8);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+</script>
+</body>
+</html>
