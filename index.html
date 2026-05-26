@@ -2,347 +2,239 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>통합 배너 프로그램 </title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>띠배너 생성기</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <style>
-        body { 
+        body {
             <div style="padding: 15px; background: #000; border-bottom: 1px solid #333;">
     <a href="https://mjmlscompany-lab.github.io/" style="color: #2ecc71; text-decoration: none; font-weight: bold;">◀ 메인으로 돌아가기</a>
 </div>
-            margin: 0; padding: 0; 
-            font-family: 'Malgun Gothic', sans-serif; 
-            background: #1a1a1a; color: #fff; 
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f0f2f5;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-height: 100vh;
+            padding: 40px 20px;
+            margin: 0;
         }
 
-        .wrapper {
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        /* 컨트롤러 영역 */
+        .controls {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 100%; 
+            max-width: 800px;
+            margin-bottom: 30px;
+            box-sizing: border-box;
+        }
+
+        .control-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .input-item {
             display: flex;
             flex-direction: column;
+            gap: 8px;
         }
-        
-        /* 1. 상단 가맹점 헤더 영역 */
-        .affiliate-header { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 20px 20px 10px 20px; background: #111; border-bottom: 2px solid #333; }
-        .aff-box { display: flex; flex-direction: column; gap: 8px; }
-        .aff-drop { height: 110px; border: 2px dashed #444; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: #222; cursor: pointer; position: relative; overflow: hidden; transition: 0.3s; }
-        .aff-drop:hover { border-color: #2ecc71; background: #282828; }
-        .aff-drop img { width: 100%; height: 100%; object-fit: contain; position: absolute; top: 0; left: 0; }
-        .aff-label { font-size: 0.9em; font-weight: bold; color: #2ecc71; text-align: center; }
-        .plus-small { font-size: 24px; color: #444; z-index: 1; }
 
-        /* 2. 중앙 메인 드롭존 (원본 480px 대형 크기 유지 + 배경 썸네일 효과) */
-        .dropzone-container { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 20px; 
-            padding: 15px 20px; 
+        label {
+            font-weight: bold;
+            font-size: 14px;
+            color: #555;
         }
-        .bulk-drop-box { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            border: 4px dashed #333; 
-            border-radius: 20px; 
-            cursor: pointer; 
-            transition: all 0.3s; 
-            background: #1f1f1f; 
-            height: 480px; 
-            text-align: center; 
-            position: relative;
+
+        input[type="text"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 40px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            padding: 0;
+            background: none;
+        }
+
+        .btn-download {
+            width: 100%;
+            padding: 14px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-download:hover {
+            background-color: #45a049;
+        }
+
+        /* 띠배너 실시간 미리보기 영역 (800x250) */
+        .banner-wrapper {
+            background-color: transparent;
+            padding: 10px;
+        }
+
+        #banner {
+            width: 800px;
+            height: 250px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            border-radius: 12px;
             overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
         }
-        .bulk-drop-box:hover { border-color: #2ecc71; background: #252525; }
-        
-        /* 드롭존 내부 가상 배경 이미지 레이어 */
-        .zone-bg {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover; opacity: 0.15; /* 글자가 잘 보이도록 배경에 은은하게 15% 투명도로 깔림 */
-            display: none; pointer-events: none;
-        }
-        
-        /* 우측 상단 심플 카운트 배지 */
-        .count-badge {
-            position: absolute; top: 15px; right: 15px;
-            background: #2ecc71; color: #000; font-weight: bold;
-            font-size: 0.85em; padding: 4px 12px; border-radius: 30px;
-            display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        }
-        #drop-zone-o .count-badge { background: #3498db; color: #fff; }
 
-        /* 파일이 존재할 때 변경될 실선 테두리 */
-        .bulk-drop-box.has-files-x { border: 4px solid #2ecc71; }
-        .bulk-drop-box.has-files-o { border: 4px solid #3498db; }
+        /* 상단 타이틀 바 */
+        .banner-header {
+            height: 70px;
+            background-color: #47464c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
 
-        .main-text { font-size: 1.6em; font-weight: bold; color: #2ecc71; margin-top: 10px; z-index: 2; }
-        .sub-text { margin-top: 10px; color: #888; font-size: 1em; line-height: 1.6; z-index: 2; }
-        .highlight { color: #2ecc71; font-weight: bold; }
-        
-        /* 3. 하단 상태 및 결과창 */
-        #status { text-align: center; padding: 15px 8px 10px 8px; font-weight: bold; color: #2ecc71; min-height: 1.2em; font-size: 0.95em; }
-        #result-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; padding: 0 20px; overflow-y: auto; max-height: 20vh; }
-        .preview-item { background: #222; padding: 6px; border-radius: 8px; font-size: 0.7em; text-align: center; border: 1px solid #333; }
-        .preview-item img { width: 100%; border-radius: 4px; margin-bottom: 5px; }
-        
-        /* 4. 최하단 고정 버튼 영역 */
-        .btn-container { 
-            padding: 10px 15px 30px 15px; 
-            text-align: center; 
+        /* 하단 콘텐츠 바 */
+        .banner-body {
+            flex: 1;
+            background-color: #f3f3f3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            gap: 8px;
         }
-        .action-btn { 
-            background: #2ecc71; 
-            color: #000; 
-            border: none; 
-            padding: 14px 80px; 
-            font-size: 1.15em; 
-            font-weight: bold; 
-            border-radius: 50px; 
-            cursor: pointer; 
-            transition: 0.3s; 
-            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.2); 
+
+        .text-main {
+            font-size: 26px;
+            font-weight: 700;
+            color: #111;
+            margin: 0;
+            text-align: center;
         }
-        .action-btn:hover { transform: scale(1.02); background: #27ae60; }
-        
-        canvas { display: none; }
+
+        .text-sub {
+            font-size: 18px;
+            font-weight: 400;
+            color: #666;
+            margin: 0;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 
-<div class="wrapper">
-    <div class="affiliate-header">
-        <div class="aff-box"><div class="aff-label">n_MO메인 (208x208)</div><div class="aff-drop" onclick="triggerInput('main')" id="drop-main"><span class="plus-small">+</span></div></div>
-        <div class="aff-box"><div class="aff-label">n_MO썸네일1 (218x146)</div><div class="aff-drop" onclick="triggerInput('thumb1')" id="drop-thumb1"><span class="plus-small">+</span></div></div>
-        <div class="aff-box"><div class="aff-label">n_MO썸네일2 (218x146)</div><div class="aff-drop" onclick="triggerInput('thumb2')" id="drop-thumb2"><span class="plus-small">+</span></div></div>
-    </div>
+    <h1>실시간 띠배너 생성기</h1>
 
-    <div class="dropzone-container">
-        <div id="drop-zone-x" class="bulk-drop-box">
-            <img id="bg-x" class="zone-bg">
-            <div id="badge-x" class="count-badge">0장 대기중</div>
-            <div class="plus-small" id="plus-icon-x" style="font-size: 40px; color:#2ecc71; z-index:2;">+</div>
-            <div class="main-text">텍스트 X</div>
-            <div class="sub-text">
-                <span class="highlight">1000/1200 이미지를 한꺼번에 드롭하세요!</span>
+    <div class="controls">
+        <div class="control-group">
+            <div class="input-item">
+                <label>상단 타이틀 (영어/대문자 추천)</label>
+                <input type="text" id="inputHeaderTxt" value="NOTICE">
+            </div>
+            <div class="input-item">
+                <label>상단 배경 색상</label>
+                <input type="color" id="inputHeaderBg" value="#47464c">
             </div>
         </div>
 
-        <div id="drop-zone-o" class="bulk-drop-box">
-            <img id="bg-o" class="zone-bg">
-            <div id="badge-o" class="count-badge">0장 대기중</div>
-            <div class="plus-small" id="plus-icon-o" style="font-size: 40px; color: #3498db; z-index:2;">+</div>
-            <div class="main-text" style="color: #3498db;">텍스트 O</div>
-            <div class="sub-text">
-                <span class="highlight" style="color: #3498db;">1000/1200 이미지를 한꺼번에 드롭하세요!</span>
+        <div class="control-group">
+            <div class="input-item">
+                <label>메인 본문 문구</label>
+                <input type="text" id="inputMainTxt" value="※ 본 티켓은 당일 구매 후 당일 사용이 불가합니다.">
+            </div>
+            <div class="input-item">
+                <label>하단 배경 색상</label>
+                <input type="color" id="inputBodyBg" value="#f3f3f3">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="input-item" style="grid-column: span 2;">
+                <label>서브 안내 문구</label>
+                <input type="text" id="inputSubTxt" value="(※ 방문 최소 1일 전 구매 필수)">
+            </div>
+        </div>
+
+        <button class="btn-download" onclick="downloadBanner()">배너 이미지로 다운로드</button>
+    </div>
+
+    <div class="banner-wrapper">
+        <div id="banner">
+            <div class="banner-header" id="bannerHeader">NOTICE</div>
+            <div class="banner-body" id="bannerBody">
+                <p class="text-main" id="bannerMain">※ 본 티켓은 당일 구매 후 당일 사용이 불가합니다.</p>
+                <p class="text-sub" id="bannerSub">(※ 방문 최소 1일 전 구매 필수)</p>
             </div>
         </div>
     </div>
 
-    <div id="status"></div>
-    <div id="result-container"></div>
-    
-    <div class="btn-container">
-        <button class="action-btn" onclick="processAll()">규격화</button>
-    </div>
-</div>
+    <script>
+        // DOM 요소 가져오기
+        const inputHeaderTxt = document.getElementById('inputHeaderTxt');
+        const inputHeaderBg = document.getElementById('inputHeaderBg');
+        const inputMainTxt = document.getElementById('inputMainTxt');
+        const inputBodyBg = document.getElementById('inputBodyBg');
+        const inputSubTxt = document.getElementById('inputSubTxt');
 
-    <input type="file" id="input-main" style="display:none"><input type="file" id="input-thumb1" style="display:none"><input type="file" id="input-thumb2" style="display:none">
-    <input type="file" id="input-bulk-x" multiple style="display:none">
-    <input type="file" id="input-bulk-o" multiple style="display:none">
-    <canvas id="canvas"></canvas>
+        const bannerHeader = document.getElementById('bannerHeader');
+        const bannerBody = document.getElementById('bannerBody');
+        const bannerMain = document.getElementById('bannerMain');
+        const bannerSub = document.getElementById('bannerSub');
 
-<script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    let xFiles = [];
-    let oFiles = [];
-    const affiliateImages = { main: null, thumb1: null, thumb2: null };
+        // 실시간 반영 이벤트 리스너 등록
+        inputHeaderTxt.addEventListener('input', (e) => bannerHeader.innerText = e.target.value);
+        inputHeaderBg.addEventListener('input', (e) => bannerHeader.style.backgroundColor = e.target.value);
+        inputMainTxt.addEventListener('input', (e) => bannerMain.innerText = e.target.value);
+        inputBodyBg.addEventListener('input', (e) => bannerBody.style.backgroundColor = e.target.value);
+        inputSubTxt.addEventListener('input', (e) => bannerSub.innerText = e.target.value);
 
-    function triggerInput(id) { document.getElementById(`input-${id}`).click(); }
-    ['main', 'thumb1', 'thumb2'].forEach(id => {
-        const input = document.getElementById(`input-${id}`);
-        const drop = document.getElementById(`drop-${id}`);
-        input.onchange = (e) => handleAffiliateFile(e.target.files[0], id);
-        drop.ondragover = (e) => { e.preventDefault(); drop.style.borderColor = '#2ecc71'; };
-        drop.ondragleave = () => { drop.style.borderColor = '#444'; };
-        drop.ondrop = (e) => { e.preventDefault(); drop.style.borderColor = '#444'; handleAffiliateFile(e.dataTransfer.files[0], id); };
-    });
-
-    async function handleAffiliateFile(file, id) {
-        if (!file || !file.type.startsWith('image/')) return;
-        affiliateImages[id] = await loadImage(file);
-        document.getElementById(`drop-${id}`).innerHTML = `<img src="${URL.createObjectURL(file)}">`;
-        updateStatus();
-    }
-
-    const dropX = document.getElementById('drop-zone-x');
-    const inputX = document.getElementById('input-bulk-x');
-    dropX.onclick = () => inputX.click();
-    dropX.ondragover = (e) => { e.preventDefault(); dropX.style.borderColor = '#2ecc71'; };
-    dropX.ondragleave = () => { if(xFiles.length === 0) dropX.style.borderColor = '#333'; };
-    dropX.ondrop = (e) => { e.preventDefault(); addFiles(e.dataTransfer.files, 'X'); };
-    inputX.onchange = (e) => addFiles(e.target.files, 'X');
-
-    const dropO = document.getElementById('drop-zone-o');
-    const inputO = document.getElementById('input-bulk-o');
-    dropO.onclick = () => inputO.click();
-    dropO.ondragover = (e) => { e.preventDefault(); dropO.style.borderColor = '#3498db'; };
-    dropO.ondragleave = () => { if(oFiles.length === 0) dropO.style.borderColor = '#333'; };
-    dropO.ondrop = (e) => { e.preventDefault(); addFiles(e.dataTransfer.files, 'O'); };
-    inputO.onchange = (e) => addFiles(e.target.files, 'O');
-
-    function addFiles(files, target) {
-        let firstImgUrl = null;
-        for (let f of files) {
-            if (f.type.startsWith('image/')) {
-                if (!firstImgUrl) firstImgUrl = URL.createObjectURL(f);
-                if (target === 'X') xFiles.push(f);
-                else oFiles.push(f);
-            }
-        }
-        
-        if(firstImgUrl) {
-            if(target === 'X') {
-                dropX.classList.add('has-files-x');
-                const bgX = document.getElementById('bg-x');
-                bgX.src = firstImgUrl; bgX.style.display = 'block';
-                const badgeX = document.getElementById('badge-x');
-                badgeX.innerText = ` ${xFiles.length}장 대기중`; badgeX.style.display = 'block';
-                document.getElementById('plus-icon-x').style.display = 'none';
-            } else {
-                dropO.classList.add('has-files-o');
-                const bgO = document.getElementById('bg-o');
-                bgO.src = firstImgUrl; bgO.style.display = 'block';
-                const badgeO = document.getElementById('badge-o');
-                badgeO.innerText = ` ${oFiles.length}장 대기중`; badgeO.style.display = 'block';
-                document.getElementById('plus-icon-o').style.display = 'none';
-            }
-        }
-        updateStatus();
-    }
-
-    function resetUI() {
-        dropX.classList.remove('has-files-x');
-        document.getElementById('bg-x').style.display = 'none';
-        document.getElementById('badge-x').style.display = 'none';
-        document.getElementById('plus-icon-x').style.display = 'block';
-
-        dropO.classList.remove('has-files-o');
-        document.getElementById('bg-o').style.display = 'none';
-        document.getElementById('badge-o').style.display = 'none';
-        document.getElementById('plus-icon-o').style.display = 'block';
-    }
-
-    async function processAll() {
-        if (xFiles.length === 0 && oFiles.length === 0 && !affiliateImages.main) { 
-            alert("이미지를 한 곳 이상 등록한 후 추출해주세요!"); 
-            return; 
-        }
-        
-        document.getElementById('status').innerText = "⚡ 파일명 최적화 및 전체 빌드 중...";
-        const zip = new JSZip();
-        document.getElementById('result-container').innerHTML = "";
-
-        if (affiliateImages.main) zip.file("n_MO메인.jpg", await renderImage(affiliateImages.main, 208, 208, 'image/jpeg'));
-        if (affiliateImages.thumb1) zip.file("n_MO썸네일1.jpg", await renderImage(affiliateImages.thumb1, 218, 146, 'image/jpeg'));
-        if (affiliateImages.thumb2) zip.file("n_MO썸네일2.jpg", await renderImage(affiliateImages.thumb2, 218, 146, 'image/jpeg'));
-
-        const specsX = {
-            square: [
-                { w: 1000, h: 1000, name: '1000_x', type: 'image/jpeg' },
-                { w: 500,  h: 500,  name: 'e_PC배너', type: 'image/png' }
-            ],
-            wide: [
-                { w: 1200, h: 750,  name: '1200_x', type: 'image/jpeg' },
-                { w: 650,  h: 400,  name: 'y_rolling_banner', type: 'image/jpeg' },
-                { w: 720,  h: 360,  name: 'cardview', type: 'image/jpeg' },
-                { w: 1080, h: 720,  name: 'c_rolling_banner_x', type: 'image/jpeg' },
-                { w: 900,  h: 600,  name: 'kk_banner', type: 'image/jpeg' },
-                { w: 640,  h: 278,  name: 'e_모바일배너', type: 'image/png' },
-                { w: 1920, h: 1152, name: 'k_rolling_banner', type: 'image/jpeg' }
-            ]
-        };
-
-        for (const file of xFiles) {
-            const img = await loadImage(file);
-            const ratio = img.width / img.height;
-            const targetSet = ratio > 1.1 ? specsX.wide : specsX.square;
-
-            for (const spec of targetSet) {
-                const blob = await renderImage(img, spec.w, spec.h, spec.type);
-                const fName = `${spec.name}.${spec.type === 'image/png' ? 'png' : 'jpg'}`;
-                zip.file(fName, blob);
-                addPreview(blob, `[X] ${fName}`);
-            }
-        }
-
-        for (const file of oFiles) {
-            const img = await loadImage(file);
-            const ratio = img.width / img.height;
+        // 이미지 다운로드 기능 (html2canvas 활용)
+        function downloadBanner() {
+            const banner = document.getElementById('banner');
             
-            let targetSpecs = [];
-            if (ratio > 1.2) {
-                targetSpecs = [
-                    { w: 1200, h: 750, name: '1200' },
-                    { w: 1080, h: 720, name: 'c_rolling_banner' }
-                ];
-            } else {
-                targetSpecs = [
-                    { w: 1000, h: 1000, name: '1000' },
-                    { w: 600,  h: 800,  name: 'y_thumbnail_banner' }
-                ];
-            }
-
-            for (const spec of targetSpecs) {
-                const blob = await renderImage(img, spec.w, spec.h, 'image/jpeg');
-                const fName = `${spec.name}.jpg`;
-                zip.file(fName, blob);
-                addPreview(blob, `[O] ${fName}`);
-            }
+            // 둥근 모서리(border-radius)까지 깔끔하게 캡처하기 위한 옵션
+            html2canvas(banner, {
+                scale: 2, // 2배 해상도로 선명하게 저장
+                backgroundColor: null // 배경 투명 처리
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'banner_' + new Date().getTime() + '.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
         }
-
-        const content = await zip.generateAsync({type: "blob"});
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(content);
-        link.download = `마케팅_통합_전체배너_최종본.zip`;
-        link.click();
-        
-        document.getElementById('status').innerText = "✅ 작업 완료!";
-        xFiles = []; oFiles = [];
-        resetUI();
-    }
-
-    function addPreview(blob, name) {
-        const div = document.createElement('div');
-        div.className = 'preview-item';
-        div.innerHTML = `<img src="${URL.createObjectURL(blob)}"><br>${name}`;
-        document.getElementById('result-container').appendChild(div);
-    }
-
-    function loadImage(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => { const img = new Image(); img.onload = () => resolve(img); img.src = e.target.result; };
-            reader.readAsDataURL(file);
-        });
-    }
-
-    function renderImage(img, targetW, targetH, mimeType) {
-        return new Promise((resolve) => {
-            canvas.width = targetW; canvas.height = targetH;
-            ctx.clearRect(0, 0, targetW, targetH);
-            if (mimeType === 'image/jpeg') { ctx.fillStyle = "white"; ctx.fillRect(0, 0, targetW, targetH); }
-            let scale = Math.max(targetW / img.width, targetH / img.height);
-            let w = img.width * scale; let h = img.height * scale;
-            let x = (targetW - w) / 2; let y = (targetH - h) / 2;
-            ctx.drawImage(img, x, y, w, h);
-            canvas.toBlob((blob) => resolve(blob), mimeType, 0.9);
-        });
-    }
-</script>
+    </script>
 </body>
 </html>
